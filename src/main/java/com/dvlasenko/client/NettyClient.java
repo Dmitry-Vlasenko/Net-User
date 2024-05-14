@@ -38,7 +38,6 @@ public final class NettyClient {
             Scanner scanner = new Scanner(System.in);
             Channel channel = f.sync().channel();
             while (true) {
-                System.out.println("Enter message: ");
                 String input = scanner.nextLine();
                 channel.writeAndFlush(input);
                 channel.flush();

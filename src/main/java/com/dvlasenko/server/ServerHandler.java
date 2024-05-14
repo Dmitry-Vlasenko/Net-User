@@ -1,22 +1,18 @@
 package com.dvlasenko.server;
 
-import com.dvlasenko.app.controller.UserController;
-import com.dvlasenko.app.exceptions.OptionException;
-import com.dvlasenko.app.utils.AppStarter;
-import com.dvlasenko.app.utils.Constants;
-import com.dvlasenko.app.view.AppView;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import com.dvlasenko.app.service.UserService;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @ChannelHandler.Sharable
 public class ServerHandler extends SimpleChannelInboundHandler<String> {
 
     static final List<Channel> channels = new ArrayList<>();
+    final UserService service = new UserService();
 
     @Override
     public void channelActive(final ChannelHandlerContext ctx) {
@@ -40,36 +36,51 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, String msg) {
-        System.out.println("Message received: " + msg);
-
-        final UserController controller = new UserController();
+        Map<String, String> map = new HashMap<>();
         int data = Integer.parseInt(msg);
         switch (data) {
             case 1:
-                controller.create();
+                ctx.writeAndFlush("\nCREATE FORM");
+                ctx.writeAndFlush("Input first name: ");
+                map.put("first_name", msg);
+                ctx.writeAndFlush("Input last name: ");
+                map.put("last_name", msg);
+                ctx.writeAndFlush("Input email in format example@mail.com: ");
+                map.put("email", msg);
+                service.create(map);
+                break;
             case 2:
-                controller.read();
+                ctx.writeAndFlush(service.read());
+                break;
             case 3:
-                controller.update();
+                System.out.println("\nUPDATE FORM");
+                Scanner scanner = new Scanner(System.in);
+                ctx.writeAndFlush("Input id: ");
+                map.put("id", scanner.nextLine().trim());
+                ctx.writeAndFlush("Input first name: ");
+                map.put("first_name", scanner.nextLine().trim());
+                ctx.writeAndFlush("Input last name: ");
+                map.put("last_name", scanner.nextLine().trim());
+                ctx.writeAndFlush("Input email in format example@mail.com: ");
+                map.put("email", scanner.nextLine().trim());
+                service.update(map);
+                break;
             case 4:
-                controller.delete();
+                System.out.println("\nDELETE FORM");
+                ctx.writeAndFlush("Input id: ");
+                map.put("id", msg);
+                service.delete(map);
+                break;
             case 5:
-                controller.readById();
+                System.out.println("\nREAD BY ID FORM");
+                ctx.writeAndFlush("Input id: ");
+                map.put("id", msg);
+                service.readById(map);
+                break;
             case 0:
                 ctx.writeAndFlush("Closing connection for client - " + ctx);
                 ctx.close();
-                return;
-            default: {
-                try {
-                    throw new OptionException(Constants.INCORRECT_OPTION_MSG);
-                } catch (OptionException e) {
-                    new AppView().getOutput(e.getMessage());
-                    AppStarter.startApp();
-                }
-            }
         }
-        getMenu(ctx);
-        ctx.writeAndFlush("Input your option: ");
     }
 
     @Override

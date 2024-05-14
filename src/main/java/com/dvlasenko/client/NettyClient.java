@@ -7,14 +7,16 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
+import java.util.Scanner;
 
 public final class NettyClient {
 
     static final String HOST = "127.0.0.1";
     static final int PORT = 8001;
+    public static String option;
 
     public static void main(String[] args) throws Exception {
-
+        Scanner scanner = new Scanner(System.in);
         EventLoopGroup group = new NioEventLoopGroup();
 
         try {
@@ -31,11 +33,17 @@ public final class NettyClient {
                         }
                     });
             ChannelFuture f = b.connect(HOST, PORT).sync();
-            String input = "Tom";
             Channel channel = f.sync().channel();
-            channel.writeAndFlush(input);
-            channel.flush();
             f.channel().closeFuture().sync();
+            try {
+                while (true){
+                option = scanner.nextLine();
+                channel.writeAndFlush(option);
+//                channel.flush();
+            }}
+            catch (Exception e){
+                e.printStackTrace();
+            }
         } finally {
             group.shutdownGracefully();
         }

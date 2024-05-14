@@ -28,7 +28,6 @@ public final class NettyServer {
                             ChannelPipeline p = ch.pipeline();
                             p.addLast(new StringDecoder());
                             p.addLast(new StringEncoder());
-                            // Обробник на сервері
                             p.addLast(new ServerHandler());
                         }
                     });

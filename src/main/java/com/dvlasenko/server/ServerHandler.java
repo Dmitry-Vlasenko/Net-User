@@ -17,6 +17,13 @@ import java.util.List;
 public class ServerHandler extends SimpleChannelInboundHandler<String> {
 
     static final List<Channel> channels = new ArrayList<>();
+
+    @Override
+    public void channelActive(final ChannelHandlerContext ctx) {
+        System.out.println("Client joined - " + ctx);
+        getMenu(ctx);
+        channels.add(ctx.channel());
+    }
     private void getMenu(ChannelHandlerContext ctx) {
         String menu = """
                 OPTIONS:
@@ -32,25 +39,27 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
     }
 
     @Override
-    public void channelActive(final ChannelHandlerContext ctx) {
-        System.out.println("Client joined - " + ctx);
-        getMenu(ctx);
-        channels.add(ctx.channel());
-    }
-
-    @Override
     public void channelRead0(ChannelHandlerContext ctx, String msg) {
-        System.out.println("Client wrote - " + msg);
-        getMenu(ctx);
+        System.out.println("Message received: " + msg);
+
         final UserController controller = new UserController();
-        switch (Integer.parseInt(msg)) {
-            case 1 -> controller.create();
-            case 2 -> controller.read();
-            case 3 -> controller.update();
-            case 4 -> controller.delete();
-            case 5 -> controller.readById();
-            case 0 -> ctx.close();
-            default -> {
+        int data = Integer.parseInt(msg);
+        switch (data) {
+            case 1:
+                controller.create();
+            case 2:
+                controller.read();
+            case 3:
+                controller.update();
+            case 4:
+                controller.delete();
+            case 5:
+                controller.readById();
+            case 0:
+                ctx.writeAndFlush("Closing connection for client - " + ctx);
+                ctx.close();
+                return;
+            default: {
                 try {
                     throw new OptionException(Constants.INCORRECT_OPTION_MSG);
                 } catch (OptionException e) {
@@ -59,7 +68,8 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
                 }
             }
         }
-        ctx.writeAndFlush("Client wrote - " + msg);
+        getMenu(ctx);
+        ctx.writeAndFlush("Input your option: ");
     }
 
     @Override

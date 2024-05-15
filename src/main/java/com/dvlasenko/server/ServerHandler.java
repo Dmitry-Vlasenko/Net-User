@@ -1,5 +1,6 @@
 package com.dvlasenko.server;
 
+import com.dvlasenko.app.entity.User;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -8,6 +9,7 @@ import io.netty.util.AttributeKey;
 import com.dvlasenko.app.service.UserService;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @ChannelHandler.Sharable
 public class ServerHandler extends SimpleChannelInboundHandler<String> {
@@ -37,7 +39,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
                 "Input your option: "
                 """;
         ctx.writeAndFlush(menu);
-        ctx.channel().attr(STATE).set(0);  // Initial state
+        ctx.channel().attr(STATE).set(0);
     }
 
     @Override
@@ -54,7 +56,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
                 handleCreateUser(ctx, msg);
                 break;
             case 2:
-                ctx.writeAndFlush(service.read());
+                handleReadUser(ctx, msg);
                 break;
             case 3:
                 handleUpdateUser(ctx, msg);
@@ -80,8 +82,7 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
                 ctx.channel().attr(STATE).set(1);
                 break;
             case 2:
-                ctx.writeAndFlush(service.read());
-                getMenu(ctx);
+                handleReadUser(ctx, msg);
                 break;
             case 3:
                 ctx.writeAndFlush("Input id to update: ");
@@ -152,6 +153,18 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
         Map<String, String> userData = ctx.channel().attr(USER_DATA).get();
         userData.put("id", msg);
         ctx.writeAndFlush(service.readById(userData));
+        getMenu(ctx);
+    }
+    private void handleReadUser(ChannelHandlerContext ctx, String msg) {
+        List<User> users = service.read();
+        if (users.isEmpty()) {
+            ctx.writeAndFlush("No users found.\n");
+        } else {
+            StringBuilder sb = new StringBuilder("Users:\n");
+            AtomicInteger count = new AtomicInteger(1);
+            users.forEach(user -> sb.append(count.getAndIncrement()).append(". ").append(user));
+            ctx.writeAndFlush(sb.toString());
+        }
         getMenu(ctx);
     }
 

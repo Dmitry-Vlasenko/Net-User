@@ -6,7 +6,10 @@ import com.dvlasenko.app.exceptions.UserException;
 import com.dvlasenko.app.repository.impl.UserRepository;
 import com.dvlasenko.app.utils.UserValidator;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class UserService {
@@ -74,6 +77,16 @@ public class UserService {
     }
 
     public Object readById(Map<String, String> data) {
+        Map<String, String> errors =
+                new UserValidator().validateUserData(data);
+        if (!errors.isEmpty()) {
+            try {
+                throw new UserException("Check inputs", errors);
+            } catch (UserException e) {
+                e.getErrors(errors);
+                return null;
+            }
+        }
         Optional<User> optional =
                 repository.readById(Long.parseLong(data.get("id")));
         if (optional.isPresent()) {

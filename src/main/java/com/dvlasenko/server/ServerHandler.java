@@ -4,6 +4,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.util.AttributeKey;
 import com.dvlasenko.app.service.UserService;
 
 import java.util.*;
@@ -14,12 +15,16 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
     static final List<Channel> channels = new ArrayList<>();
     final UserService service = new UserService();
 
+    private static final AttributeKey<Integer> STATE = AttributeKey.valueOf("state");
+    private static final AttributeKey<Map<String, String>> USER_DATA = AttributeKey.valueOf("userData");
+
     @Override
     public void channelActive(final ChannelHandlerContext ctx) {
         System.out.println("Client joined - " + ctx);
         getMenu(ctx);
         channels.add(ctx.channel());
     }
+
     private void getMenu(ChannelHandlerContext ctx) {
         String menu = """
                 OPTIONS:
@@ -32,55 +37,122 @@ public class ServerHandler extends SimpleChannelInboundHandler<String> {
                 "Input your option: "
                 """;
         ctx.writeAndFlush(menu);
+        ctx.channel().attr(STATE).set(0);  // Initial state
     }
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, String msg) {
-        Map<String, String> map = new HashMap<>();
-        int data = Integer.parseInt(msg);
-        switch (data) {
+        Integer state = ctx.channel().attr(STATE).get();
+        if (state == null) {
+            state = 0;
+        }
+        switch (state) {
+            case 0:
+                handleMenuSelection(ctx, msg);
+                break;
             case 1:
-                ctx.writeAndFlush("\nCREATE FORM");
-                ctx.writeAndFlush("Input first name: ");
-                map.put("first_name", msg);
-                ctx.writeAndFlush("Input last name: ");
-                map.put("last_name", msg);
-                ctx.writeAndFlush("Input email in format example@mail.com: ");
-                map.put("email", msg);
-                service.create(map);
+                handleCreateUser(ctx, msg);
                 break;
             case 2:
                 ctx.writeAndFlush(service.read());
                 break;
             case 3:
-                System.out.println("\nUPDATE FORM");
-                Scanner scanner = new Scanner(System.in);
-                ctx.writeAndFlush("Input id: ");
-                map.put("id", scanner.nextLine().trim());
-                ctx.writeAndFlush("Input first name: ");
-                map.put("first_name", scanner.nextLine().trim());
-                ctx.writeAndFlush("Input last name: ");
-                map.put("last_name", scanner.nextLine().trim());
-                ctx.writeAndFlush("Input email in format example@mail.com: ");
-                map.put("email", scanner.nextLine().trim());
-                service.update(map);
+                handleUpdateUser(ctx, msg);
                 break;
             case 4:
-                System.out.println("\nDELETE FORM");
-                ctx.writeAndFlush("Input id: ");
-                map.put("id", msg);
-                service.delete(map);
+                handleDeleteUser(ctx, msg);
                 break;
             case 5:
-                System.out.println("\nREAD BY ID FORM");
-                ctx.writeAndFlush("Input id: ");
-                map.put("id", msg);
-                service.readById(map);
+                handleReadById(ctx, msg);
+                break;
+            default:
+                getMenu(ctx);
+                break;
+        }
+    }
+
+    private void handleMenuSelection(ChannelHandlerContext ctx, String msg) {
+        int data = Integer.parseInt(msg);
+        ctx.channel().attr(USER_DATA).set(new HashMap<>());
+        switch (data) {
+            case 1:
+                ctx.writeAndFlush("Input first name: ");
+                ctx.channel().attr(STATE).set(1);
+                break;
+            case 2:
+                ctx.writeAndFlush(service.read());
+                getMenu(ctx);
+                break;
+            case 3:
+                ctx.writeAndFlush("Input id to update: ");
+                ctx.channel().attr(STATE).set(3);
+                break;
+            case 4:
+                ctx.writeAndFlush("Input id to delete: ");
+                ctx.channel().attr(STATE).set(4);
+                break;
+            case 5:
+                ctx.writeAndFlush("Input id to read: ");
+                ctx.channel().attr(STATE).set(5);
                 break;
             case 0:
                 ctx.writeAndFlush("Closing connection for client - " + ctx);
                 ctx.close();
+                break;
+            default:
+                getMenu(ctx);
+                break;
         }
+    }
+
+    private void handleCreateUser(ChannelHandlerContext ctx, String msg) {
+        Map<String, String> userData = ctx.channel().attr(USER_DATA).get();
+        if (!userData.containsKey("first_name")) {
+            userData.put("first_name", msg);
+            ctx.writeAndFlush("Input last name: ");
+        } else if (!userData.containsKey("last_name")) {
+            userData.put("last_name", msg);
+            ctx.writeAndFlush("Input email in format example@mail.com: ");
+        } else {
+            userData.put("email", msg);
+            service.create(userData);
+            ctx.writeAndFlush("User created successfully.\n");
+            getMenu(ctx);
+        }
+    }
+
+    private void handleUpdateUser(ChannelHandlerContext ctx, String msg) {
+        Map<String, String> userData = ctx.channel().attr(USER_DATA).get();
+        if (!userData.containsKey("id")) {
+            userData.put("id", msg);
+            ctx.writeAndFlush("Input first name: ");
+        } else if (!userData.containsKey("first_name")) {
+            userData.put("first_name", msg);
+            ctx.writeAndFlush("Input last name: ");
+        } else if (!userData.containsKey("last_name")) {
+            userData.put("last_name", msg);
+            ctx.writeAndFlush("Input email in format example@mail.com: ");
+        } else {
+            userData.put("email", msg);
+            service.update(userData);
+            ctx.writeAndFlush("User updated successfully.\n");
+            getMenu(ctx);
+        }
+    }
+
+    private void handleDeleteUser(ChannelHandlerContext ctx, String msg) {
+        Map<String, String> userData = ctx.channel().attr(USER_DATA).get();
+        userData.put("id", msg);
+        service.delete(userData);
+        ctx.writeAndFlush("User deleted successfully.\n");
+        getMenu(ctx);
+    }
+
+    private void handleReadById(ChannelHandlerContext ctx, String msg) {
+        Map<String, String> userData = ctx.channel().attr(USER_DATA).get();
+        userData.put("id", msg);
+        ctx.writeAndFlush(service.readById(userData));
+        getMenu(ctx);
     }
 
     @Override

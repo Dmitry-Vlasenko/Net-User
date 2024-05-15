@@ -29,7 +29,7 @@ public class UserService {
         repository.create(new UserMapper().mapData(data));
     }
 
-    public String read() {
+    public List read() {
         Optional<List<User>> optional = repository.read();
         if (optional.isPresent()) {
             List<User> list = optional.get();
@@ -42,9 +42,9 @@ public class UserService {
                                 .append(user.toString())
                 );
             }
-            return list.toString();
+            return list;
         }
-        return "";
+        return List.of();
     }
 
     public void update(Map<String, String> data) {
@@ -75,7 +75,7 @@ public class UserService {
         repository.delete(new UserMapper().mapData(data).getId());
     }
 
-    public void readById(Map<String, String> data) {
+    public Object readById(Map<String, String> data) {
         Map<String, String> errors =
                 new UserValidator().validateUserData(data);
         if (!errors.isEmpty()) {
@@ -83,7 +83,7 @@ public class UserService {
                 throw new UserException("Check inputs", errors);
             } catch (UserException e) {
                 e.getErrors(errors);
-                return;
+                return null;
             }
         }
         Optional<User> optional =
@@ -91,6 +91,8 @@ public class UserService {
         if (optional.isPresent()) {
             User user = optional.get();
             user.toString();
+            return user;
         }
+        return null;
     }
 }
